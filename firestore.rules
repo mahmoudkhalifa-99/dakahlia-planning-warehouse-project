@@ -1,0 +1,346 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. GLOBAL SAFETY NET
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // 1. GLOBAL HELPERS
+    // ---------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 256; 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.get('email', '').lower() == 'sadat.planning.officer@dakahlia.net') ||
+        (request.auth.token.get('email', '').lower() == 'ahmed.hamdan@dakahlia.net') ||
+        (request.auth.uid == 'LvjUUgiX0aTBInewQaOnkRHiyHw1') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (getUserDoc().data.get('role', 'user') == 'admin' || getUserDoc().data.get('role', 'user') == 'system_supervisor'))
+      );
+    }
+    
+    function hasWarehouseAccess(warehouseId) {
+      return isSignedIn() && (
+        isAdmin() || 
+        (warehouseId != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (warehouseId in getUserDoc().data.get('allowedWarehouses', [])))
+      );
+    }
+
+    function isValidTimestamp(ts) {
+      return ts == request.time;
+    }
+
+    // ---------------------------------------------------------
+    // 2. ENTITY VALIDATORS (ANTI-UPDATE-GAP)
+    // ---------------------------------------------------------
+    
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+             data.id is string && data.id.size() <= 256 &&
+             data.name is string && data.name.size() <= 256 &&
+             (!('warehouseId' in data) || data.warehouseId == null || (data.warehouseId is string && data.warehouseId.size() <= 128)) &&
+             (!('price' in data) || data.price == null || data.price is number) &&
+             (!('stock' in data) || data.stock == null || data.stock is number) &&
+             (!('stockPacked' in data) || data.stockPacked == null || data.stockPacked is number) &&
+             (!('stockBulk' in data) || data.stockBulk == null || data.stockBulk is number) &&
+             (!('lastUpdated' in data) || (data.lastUpdated == null || data.lastUpdated is string || data.lastUpdated is timestamp));
+    }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'username', 'role', 'name']) &&
+             data.id is string && data.id.size() <= 128 && 
+             data.username is string && data.username.size() <= 128 &&
+             data.role in ['admin', 'editor', 'viewer', 'user', 'system_supervisor', 'head_finished', 'head_raw', 'head_parts', 'supervisor_finished', 'storekeeper_finished', 'supervisor_raw', 'storekeeper_raw', 'supervisor_parts', 'storekeeper_parts', 'cashier'] && 
+             data.name is string && data.name.size() <= 200 &&
+             (!('allowedWarehouses' in data) || (data.allowedWarehouses is list && data.allowedWarehouses.size() <= 20));
+    }
+
+    function isValidSale(data) {
+      return data.keys().hasAll(['id', 'date', 'total']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() <= 64 &&
+             data.total is number &&
+             (!('warehouseId' in data) || (data.warehouseId is string && data.warehouseId.size() <= 64));
+    }
+
+    function isValidPurchase(data) {
+      return data.keys().hasAll(['id', 'date', 'warehouseId', 'status']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.status in ['draft', 'pending', 'received', 'partially_received'];
+    }
+
+    function isValidMovement(data) {
+      return data.keys().hasAll(['id', 'type', 'warehouseId', 'date']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.type in ['in', 'out', 'transfer', 'adjustment', 'return'];
+    }
+
+    function isValidExpense(data) {
+      return data.keys().hasAll(['id', 'date', 'amount', 'warehouseId']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.amount is number;
+    }
+
+    function isValidTransport(data) {
+      return data.keys().hasAll(['autoId', 'date', 'carNumber', 'goodsType']) &&
+             data.autoId is string && data.autoId.size() <= 128 &&
+             data.carNumber is string && data.carNumber.size() <= 32 &&
+             data.goodsType is string && data.goodsType.size() <= 128 &&
+             (!('weight' in data) || data.weight is number);
+    }
+
+    function isValidRelease(data) {
+      return data.keys().hasAll(['id', 'orderNo', 'goodsType']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.orderNo is string && data.orderNo.size() <= 64 &&
+             data.goodsType is string && data.goodsType.size() <= 128;
+    }
+
+    function isValidFactoryBalance(data) {
+      return data.keys().hasAll(['id', 'factoryName']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.factoryName is string && data.factoryName.size() <= 200 &&
+             (!('balance' in data) || data.balance is number);
+    }
+
+    function isValidVessel(data) {
+      return data.keys().hasAll(['id', 'vesselName', 'warehouseId']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.vesselName is string && data.vesselName.size() <= 200 &&
+             data.warehouseId is string && data.warehouseId.size() <= 64;
+    }
+
+    function isValidMiniaRevenue(data) {
+      return data.keys().hasAll(['id', 'date', 'statementNo']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() <= 64 &&
+             data.statementNo is string && data.statementNo.size() <= 64;
+    }
+
+    function isValidPurchaseRequest(data) {
+      return data.keys().hasAll(['id', 'date', 'status', 'warehouseId']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() <= 64 &&
+             data.status is string && data.status.size() <= 64 &&
+             data.warehouseId is string && data.warehouseId.size() <= 64;
+    }
+
+    function isValidSectorConsumptionReport(data) {
+      return data.keys().hasAll(['id', 'date']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.date is string && data.date.size() <= 64;
+    }
+
+    // ---------------------------------------------------------
+    // 3. COLLECTION MATCH BLOCKS
+    // ---------------------------------------------------------
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && 
+                       isValidUser(incoming()) && 
+                       (incoming().role == 'user' || isAdmin());
+      
+      allow update: if isSignedIn() && (
+        (isAdmin() && isValidUser(incoming())) ||
+        (request.auth.uid == userId && 
+         isValidUser(incoming()) && 
+         incoming().role == existing().role && 
+         incoming().allowedWarehouses == existing().allowedWarehouses &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'lastActive', 'selectedWarehouse', 'permissions', 'authUid', 'id']))
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    match /config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      
+      allow create: if isSignedIn() &&
+                       isValidId(productId) &&
+                       hasWarehouseAccess(incoming().warehouseId) && 
+                       isValidProduct(incoming());
+                       
+      allow update: if isSignedIn() &&
+                       hasWarehouseAccess(existing().warehouseId) && 
+                       isValidProduct(incoming()) &&
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['name', 'price', 'cost', 'stock', 'stockPacked', 'stockBulk', 'minStock', 'sackWeight', 'notes', 'customFields', 'barcode', 'jdeCode', 'jdeCodePacked', 'jdeCodeBulk', 'unit', 'category', 'lastUpdated']));
+      
+      allow delete: if isAdmin();
+    }
+
+    match /sales/{saleId} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      
+      allow create: if isSignedIn() && 
+                       isValidId(saleId) &&
+                       isValidSale(incoming()) &&
+                       hasWarehouseAccess(incoming().warehouseId);
+                       
+      allow update: if isSignedIn() && 
+                       hasWarehouseAccess(existing().warehouseId) && 
+                       isValidSale(incoming()) &&
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || (
+                         existing().get('status', 'open') != 'closed' &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['items', 'total', 'subtotal', 'discount', 'tax', 'finalTotal', 'clientName', 'customerName', 'paymentMethod', 'notes', 'shift', 'carNumber', 'driverName', 'updatedAt', 'isClosed', 'variance'])
+                       ));
+                       
+      allow delete: if isAdmin();
+    }
+
+    match /purchases/{purchaseId} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      
+      allow create: if isSignedIn() &&
+                       isValidId(purchaseId) &&
+                       isValidPurchase(incoming()) && 
+                       hasWarehouseAccess(incoming().warehouseId);
+                       
+      allow update: if isSignedIn() &&
+                       hasWarehouseAccess(existing().warehouseId) && 
+                       isValidPurchase(incoming()) &&
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['items', 'total', 'vendorName', 'status', 'notes', 'updatedAt']));
+      
+      allow delete: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      
+      allow create: if isSignedIn() &&
+                       isValidId(expenseId) &&
+                       isValidExpense(incoming()) && 
+                       hasWarehouseAccess(incoming().warehouseId);
+                       
+      allow update: if isSignedIn() &&
+                       hasWarehouseAccess(existing().warehouseId) && 
+                       isValidExpense(incoming()) &&
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['date', 'category', 'amount', 'description', 'payee', 'updatedAt']));
+      
+      allow delete: if isAdmin();
+    }
+
+    match /movements/{movementId} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      
+      allow create: if isSignedIn() &&
+                       isValidId(movementId) &&
+                       isValidMovement(incoming()) && 
+                       hasWarehouseAccess(incoming().warehouseId);
+                       
+      allow update: if isSignedIn() &&
+                       hasWarehouseAccess(existing().warehouseId) && 
+                       isValidMovement(incoming()) &&
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['productId', 'productName', 'type', 'quantity', 'date', 'notes', 'updatedAt', 'items', 'referenceId', 'refNumber']));
+      
+      allow delete: if isAdmin();
+    }
+
+    match /transports/{id} {
+      allow get: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia'));
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId == 'minia'));
+      
+      allow create: if isSignedIn() && 
+                       (isAdmin() || hasWarehouseAccess('minia')) && 
+                       isValidId(id) && isValidTransport(incoming());
+                       
+      allow update: if isSignedIn() && 
+                       (isAdmin() || hasWarehouseAccess('minia')) && 
+                       isValidTransport(incoming()) && 
+                       incoming().autoId == existing().autoId &&
+                       (isAdmin() || (
+                         existing().get('status', 'pending') != 'finished' &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'weight', 'notes', 'updatedAt', 'departureTime', 'pieces'])
+                       ));
+                       
+      allow delete: if isAdmin();
+    }
+
+    match /factoryBalances/{id} {
+      allow get: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia'));
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId == 'minia'));
+      allow create: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia')) && isValidId(id) && isValidFactoryBalance(incoming());
+      allow update: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia')) && isValidFactoryBalance(incoming()) && 
+                       incoming().factoryName == existing().factoryName &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['balance', 'openingBalance', 'loaded', 'inProgress', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /purchaseRequests/{requestId} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      allow create: if isSignedIn() && isValidId(requestId) && isValidPurchaseRequest(incoming()) && hasWarehouseAccess(incoming().warehouseId);
+      allow update: if isSignedIn() && hasWarehouseAccess(existing().warehouseId) && isValidPurchaseRequest(incoming()) && 
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['status', 'items', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /releases/{releaseId} {
+      allow get: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia'));
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId == 'minia'));
+      allow create: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia')) && isValidId(releaseId) && isValidRelease(incoming());
+      allow update: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia')) && isValidRelease(incoming()) && 
+                       incoming().orderNo == existing().orderNo &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['remainingQuantity', 'status', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /miniaRevenues/{id} {
+      allow get: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia'));
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId == 'minia'));
+      allow create: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia')) && isValidId(id) && isValidMiniaRevenue(incoming());
+      allow update: if isSignedIn() && (isAdmin() || hasWarehouseAccess('minia')) && isValidMiniaRevenue(incoming()) && 
+                       incoming().statementNo == existing().statementNo &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['weight', 'pieces', 'total', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /vesselTracking/{id} {
+      allow get: if isSignedIn() && hasWarehouseAccess(existing().warehouseId);
+      allow list: if isSignedIn() && (isAdmin() || (resource.data.warehouseId in getUserDoc().data.get('allowedWarehouses', [])));
+      allow create: if isSignedIn() && isValidId(id) && isValidVessel(incoming()) && hasWarehouseAccess(incoming().warehouseId);
+      allow update: if isSignedIn() && hasWarehouseAccess(existing().warehouseId) && isValidVessel(incoming()) && 
+                       incoming().warehouseId == existing().warehouseId &&
+                       (isAdmin() || incoming().diff(existing()).affectedKeys().hasOnly(['remainingQty', 'endDischarge', 'status', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /consumptionReports/{id} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserDoc().data.get('role', 'user') == 'system_supervisor');
+      allow delete: if isAdmin();
+    }
+  }
+}

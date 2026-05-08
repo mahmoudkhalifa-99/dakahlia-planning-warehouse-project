@@ -1,0 +1,340 @@
+{
+  "entities": {
+    "SystemUser": {
+      "title": "SystemUser",
+      "description": "A user of the system with specific roles and permissions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "authUid": { "type": "string" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "selectedWarehouse": { "type": "string" },
+        "allowedWarehouses": { "type": "array", "items": { "type": "string" } },
+        "permissions": { "type": "object" }
+      },
+      "required": ["id", "username", "name", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "An item in the inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "barcode": { "type": "string" },
+        "jdeCode": { "type": "string" },
+        "jdeCodePacked": { "type": "string" },
+        "jdeCodeBulk": { "type": "string" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "units": { "type": "string" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" },
+        "stockPacked": { "type": "number" },
+        "stockBulk": { "type": "number" },
+        "minStock": { "type": "number" },
+        "sackWeight": { "type": "number" },
+        "warehouseId": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "warehouseId"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A sales transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoiceNo": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "tax": { "type": "number" },
+        "finalTotal": { "type": "number" },
+        "clientName": { "type": "string" },
+        "customerName": { "type": "string" },
+        "warehouseId": { "type": "string" },
+        "carNumber": { "type": "string" },
+        "driverName": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "date", "total", "warehouseId"]
+    },
+    "Purchase": {
+      "title": "Purchase",
+      "description": "A purchase order.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNo": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "warehouseId": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "pending", "received", "partially_received"] }
+      },
+      "required": ["id", "date", "warehouseId", "status"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "A movement of stock.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "type": { "type": "string", "enum": ["in", "out", "transfer", "adjustment", "return"] },
+        "quantity": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "warehouseId": { "type": "string" }
+      },
+      "required": ["id", "type", "warehouseId", "date"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "warehouseId": { "type": "string" }
+      },
+      "required": ["id", "date", "amount", "warehouseId"]
+    },
+    "PurchaseRequest": {
+      "title": "PurchaseRequest",
+      "description": "A request for a purchase.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "items": { "type": "array" },
+        "status": { "type": "string" },
+        "warehouseId": { "type": "string" }
+      },
+      "required": ["id", "date", "status", "warehouseId"]
+    },
+    "TransportRecord": {
+      "title": "TransportRecord",
+      "description": "A transport record for Minia.",
+      "type": "object",
+      "properties": {
+        "autoId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "carNumber": { "type": "string" },
+        "driverName": { "type": "string" },
+        "goodsType": { "type": "string" },
+        "weight": { "type": "number" },
+        "status": { "type": "string" },
+        "orderNo": { "type": "string" },
+        "warehouseId": { "type": "string" },
+        "unloadingSite": { "type": "string" },
+        "loadingSite": { "type": "string" },
+        "contractorName": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["autoId", "date", "carNumber", "goodsType"]
+    },
+    "Release": {
+      "title": "Release",
+      "description": "An allocation or release for a specific order and goods type.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNo": { "type": "string" },
+        "goodsType": { "type": "string" },
+        "totalQuantity": { "type": "number" },
+        "remainingQuantity": { "type": "number" },
+        "status": { "type": "string" },
+        "warehouseId": { "type": "string" }
+      },
+      "required": ["id", "orderNo", "goodsType"]
+    },
+    "FactoryBalance": {
+      "title": "FactoryBalance",
+      "description": "Current balance at a factory or site.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "factoryName": { "type": "string" },
+        "balance": { "type": "number" },
+        "goodsType": { "type": "string" },
+        "warehouseId": { "type": "string" },
+        "openingBalance": { "type": "number" },
+        "inProgress": { "type": "number" },
+        "driversLoading": { "type": "string" },
+        "driversOnRoad": { "type": "string" }
+      },
+      "required": ["id", "factoryName"]
+    },
+    "MiniaRevenue": {
+      "title": "MiniaRevenue",
+      "description": "Manual daily revenue entry for Minia port.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "statementNo": { "type": "string" },
+        "driverName": { "type": "string" },
+        "transportMethod": { "type": "string" },
+        "carNumber": { "type": "string" },
+        "pieces": { "type": "number" },
+        "weight": { "type": "number" },
+        "total": { "type": "number" },
+        "warehouseId": { "type": "string" }
+      },
+      "required": ["id", "date", "statementNo"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "currency": { "type": "string" },
+        "language": { "type": "string" },
+        "loginScreenTitle": { "type": "string" }
+      }
+    },
+    "SectorConsumptionReport": {
+      "title": "SectorConsumptionReport",
+      "description": "Daily snapshot of sector consumption and balances.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "cornIncoming": {
+          "type": "object",
+          "properties": {
+            "sadat": { "type": "number" },
+            "damas": { "type": "number" }
+          }
+        },
+        "soyIncoming": {
+          "type": "object",
+          "properties": {
+            "sadat": { "type": "number" },
+            "damas": { "type": "number" }
+          }
+        },
+        "cornConsumption": {
+          "type": "object",
+          "properties": {
+            "sadat": { "type": "number" },
+            "damas": { "type": "number" }
+          }
+        },
+        "soyConsumption": {
+          "type": "object",
+          "properties": {
+            "sadat": { "type": "number" },
+            "damas": { "type": "number" }
+          }
+        },
+        "balances": {
+          "type": "object",
+          "properties": {
+            "cornSadat": { "type": "number" },
+            "cornDamas": { "type": "number" },
+            "soySadat": { "type": "number" },
+            "soyDamas": { "type": "number" }
+          }
+        },
+        "isLocked": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "finishedProduction": { "type": "object" },
+        "finishedInventory": { "type": "object" },
+        "sadatFinishedBalances": { "type": "object" },
+        "damasFinishedBalances": { "type": "object" },
+        "sadatProductionBalances": { "type": "object" },
+        "damasProductionBalances": { "type": "object" }
+      },
+      "required": ["id", "date"]
+    },
+    "VesselTracking": {
+      "title": "VesselTracking",
+      "description": "Tracking vessel discharge and loading status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vendorName": { "type": "string" },
+        "warehouseName": { "type": "string" },
+        "goodsType": { "type": "string" },
+        "vesselName": { "type": "string" },
+        "totalQty": { "type": "number" },
+        "remainingQty": { "type": "number" },
+        "startDischarge": { "type": "string", "format": "date" },
+        "endDischarge": { "type": "string", "format": "date" },
+        "dischargeDays": { "type": "number" },
+        "loadingDays": { "type": "number" },
+        "warehouseId": { "type": "string" }
+      },
+      "required": ["id", "vesselName", "warehouseId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "SystemUser",
+      "description": "User profiles and permissions."
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Inventory products."
+    },
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Sales transactions."
+    },
+    "/purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "Purchase orders."
+    },
+    "/movements/{movementId}": {
+      "schema": "StockMovement",
+      "description": "Stock movements."
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Expense records."
+    },
+    "/purchaseRequests/{requestId}": {
+      "schema": "PurchaseRequest",
+      "description": "Purchase requests."
+    },
+    "/transports/{transportId}": {
+      "schema": "TransportRecord",
+      "description": "Minia transport records."
+    },
+    "/releases/{releaseId}": {
+      "schema": "Release",
+      "description": "Minia releases."
+    },
+    "/factoryBalances/{balanceId}": {
+      "schema": "FactoryBalance",
+      "description": "Minia factory balances."
+    },
+    "/miniaRevenues/{revenueId}": {
+      "schema": "MiniaRevenue",
+      "description": "Minia daily revenue entries."
+    },
+    "/vesselTracking/{vesselId}": {
+      "schema": "VesselTracking",
+      "description": "Vessel tracking and discharge stats."
+    },
+    "/consumptionReports/{reportId}": {
+      "schema": "SectorConsumptionReport",
+      "description": "Daily snapshots of sector consumption data."
+    },
+    "/config/{configId}": {
+      "schema": { "type": "object" },
+      "description": "Global settings and UI layout."
+    }
+  }
+}

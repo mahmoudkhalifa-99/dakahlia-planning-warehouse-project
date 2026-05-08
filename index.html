@@ -1,0 +1,104 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <title>  نظام إدارة قطاع مخازن شركة الدقهلية </title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: 'Cairo', sans-serif;
+        background-color: #f8fafc;
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* تخصيص شكل شريط التمرير */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      th {
+        white-space: nowrap;
+      }
+
+      /* أنماط الطباعة الاحترافية */
+      @media print {
+        .no-print { display: none !important; }
+        
+        @page {
+          size: A4 landscape;
+          margin: 1cm;
+        }
+
+        body {
+          background-color: white !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        .print-only {
+          display: block !important;
+        }
+
+        .print-shadow-none {
+          shadow: none !important;
+          box-shadow: none !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+
+        table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          font-size: 10pt !important;
+        }
+
+        th, td {
+          border: 1px solid #cbd5e1 !important;
+          padding: 8px !important;
+          color: black !important;
+        }
+
+        th {
+          background-color: #f1f5f9 !important;
+        }
+
+        .bg-slate-50\/20 { background-color: transparent !important; }
+        .bg-blue-50\/20 { background-color: #eff6ff !important; }
+        .bg-indigo-50\/10 { background-color: #f5f3ff !important; }
+        .bg-slate-100\/30 { background-color: #f8fafc !important; }
+      }
+
+      .print-only {
+        display: none;
+      }
+
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-50 text-slate-900">
+    <div id="root" class="flex flex-col min-h-screen w-full"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

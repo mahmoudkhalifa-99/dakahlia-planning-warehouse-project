@@ -1,0 +1,62 @@
+
+@import "tailwindcss";
+
+/* Base styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-cairo {
+  font-family: 'Cairo', sans-serif;
+}
+
+/* Ensure full height for app container */
+#root {
+  min-height: 100vh;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 3mm;
+  }
+  
+  body {
+    background: white !important;
+    font-size: 7px !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Force content to fit width */
+  #root, .print-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Specific scaling to fit on one page */
+  .analytical-report-print {
+    transform: scale(0.62) !important;
+    transform-origin: top center;
+    width: 161% !important; 
+    margin: 0 !important;
+  }
+
+  table {
+    page-break-inside: avoid;
+    border-collapse: collapse !important;
+  }
+  
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}
